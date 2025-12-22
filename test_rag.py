@@ -43,26 +43,24 @@ def get_llm():
 def format_docs(docs):
     return "\n\n".join([d.page_content for d in docs])
 
-def run_test_query(query, vector_store, llm, prompt):
-    print(f"\nQUERY: '{query}'")
+def run_test_query(query, vector_store, llm, prompt, file_handle):
+    output = []
+    output.append(f"\n### Query: '{query}'\n")
     
     retriever = vector_store.as_retriever(search_kwargs={"k": 3})
     
-    print("Retrieving context...")
+    output.append("**Retrieved Context:**\n")
     retrieved_docs = retriever.invoke(query)
     
-    print("-" * 20 + " RETRIEVED CONTEXT " + "-" * 20)
     if not retrieved_docs:
-        print("No relevant documents found.")
+        output.append("No relevant documents found.\n")
     
     for i, doc in enumerate(retrieved_docs):
         source = os.path.basename(doc.metadata.get('source', 'Unknown'))
         content_preview = doc.page_content.replace('\n', ' ')[:200]
-        print(f"Chunk {i+1} [{source}]: {content_preview}...")
-    print("-" * 60)
+        output.append(f"- **Chunk {i+1}** [{source}]: {content_preview}...\n")
 
     if llm:
-        print("Generating answer...")
         chain = (
             {"context": lambda x: format_docs(retrieved_docs), "question": lambda x: x}
             | prompt
@@ -71,13 +69,17 @@ def run_test_query(query, vector_store, llm, prompt):
         )
         try:
             response = chain.invoke(query)
-            print("FINAL ANSWER:")
-            print(response)
+            output.append(f"\n**Answer:**\n{response}\n")
         except Exception as e:
-            print(f"Error generating answer: {e}")
+            output.append(f"\n*Error generating answer: {e}*\n")
     else:
-        print("(LLM generation skipped due to missing configuration)")
-    print("="*60)
+        output.append("\n*(LLM generation skipped due to missing configuration)*\n")
+    
+    output.append("\n---\n")
+    
+    final_output = "".join(output)
+    print(query) # Keep progress in console
+    file_handle.write(final_output)
 
 def main():
     if not os.path.exists(INDEX_DIR):
@@ -93,10 +95,21 @@ def main():
 
     llm = get_llm()
     
-    template = """Answer the question based only on the following context:
+    template = """You are a helpful AI assistant for a construction marketplace.
+Answer the user's question based ONLY on the following context.
+If the answer is not in the context, strictly state that you cannot find the information in the provided documents.
+
+Context:
 {context}
 
 Question: {question}
+
+Instructions for Answer:
+1. Provide a clear, detailed, and professional explanation.
+2. Structure your response using full sentences and paragraphs.
+3. Use bullet points if there are multiple factors or items to list.
+4. Avoid short keyword lists; explain the relevance of the information.
+5. Ensure every claim is supported by the context above.
 
 Answer:"""
     prompt = ChatPromptTemplate.from_template(template)
@@ -119,9 +132,17 @@ Answer:"""
         "Explain the partner onboarding process."
     ]
 
-    print(f"Starting Quality Analysis on {len(test_queries)} queries...\n")
-    for q in test_queries:
-        run_test_query(q, vector_store, llm, prompt)
+    print(f"Starting Quality Analysis on {len(test_queries)} queries. Writing results to qa_results.md...\n")
+    
+    with open("qa_results.md", "w", encoding="utf-8") as f:
+        f.write("# Quality Analysis Results\n\n")
+        f.write(f"**Model**: {os.getenv('OLLAMA_MODEL') or os.getenv('OPENROUTER_MODEL')}\n")
+        f.write(f"**Date**: {os.getenv('DATE', 'N/A')}\n\n")
+        
+        for q in test_queries:
+            run_test_query(q, vector_store, llm, prompt, f)
+            
+    print("\nQuality Analysis Complete. Check qa_results.md")
 
 if __name__ == "__main__":
     main()

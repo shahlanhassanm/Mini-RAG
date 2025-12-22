@@ -70,10 +70,21 @@ def main():
 
     llm = get_llm()
 
-    template = """Answer the question based only on the following context:
+    template = """You are a helpful AI assistant for a construction marketplace.
+Answer the user's question based ONLY on the following context.
+If the answer is not in the context, strictly state that you cannot find the information in the provided documents.
+
+Context:
 {context}
 
 Question: {question}
+
+Instructions for Answer:
+1. Provide a clear, detailed, and professional explanation.
+2. Structure your response using full sentences and paragraphs.
+3. Use bullet points if there are multiple factors or items to list.
+4. Avoid short keyword lists; explain the relevance of the information.
+5. Ensure every claim is supported by the context above.
 
 Answer:"""
     prompt = ChatPromptTemplate.from_template(template)
