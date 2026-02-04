@@ -1,7 +1,0 @@
-fastapi
-uvicorn
-sqlalchemy
-streamlit
-pandas
-python-dotenv
-openai

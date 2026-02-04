@@ -1,8 +1,0 @@
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-crm.db
-.env
-verification_result.txt
-.DS_Store
